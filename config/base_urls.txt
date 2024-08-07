@@ -1,0 +1,15 @@
+/env
+/loggers
+/beans
+/caches
+/health
+/info
+/conditions
+/shutdown
+/configprops
+/heapdump
+/threaddump
+/metrics
+/mappings
+/scheduledtasks
+/gateway
