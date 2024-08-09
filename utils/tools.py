@@ -1,4 +1,5 @@
 import random
+import re
 import time
 import warnings
 import requests
@@ -107,6 +108,17 @@ def scan_api_url(baseurl):
     for thread in threads:
         thread.join()
 
+"""
+匹配ip或者域名
+"""
+def find_url_doamin(url):
+    pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}|\b(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,6}\b'
+        
+    # 查找IP地址或域名
+    match = re.search(pattern, url)
+    result = match.group(0) if match else None
+    result = result.replace(".","_")
+    return result
 
 # 下载heapdump
 """
@@ -114,18 +126,19 @@ def scan_api_url(baseurl):
 下载文件至本地
 """
 def download_heapdump(url):
+    baseurl = find_url_doamin(url)
     try:
         with requests.get(url, stream=True) as r:
             total_size = int(r.headers.get('content-length', 0))
             with tqdm(total=total_size, unit='B', unit_scale=True, desc="下载：heapdump") as bar:
-                with open(("./result/heapdump" + str(time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()))), 'wb') as f:
+                with open(("./result/heapdump_" + baseurl + str(time.strftime("_%Y_%m_%d_%H_%M_%S", time.localtime()))), 'wb') as f:
                     for chunk in r.iter_content(chunk_size=1024):
                         f.write(chunk)
                         bar.update(len(chunk))
         print(Fore.GREEN + "完美下载，请前往result路径查看~~~" + Fore.RESET)
     except:
         print(Fore.RED + "下载失败，请手动尝试下载~~~" + Fore.RESET)
-        
+    
 
 """
 程序初始化操作
