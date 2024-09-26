@@ -35,7 +35,7 @@ if __name__ == "__main__":
         print(Fore.GREEN + "前缀API扫描模式运行结束，正在处理结果~~~" + Fore.RESET)
         print()
         
-        with open("./result/success.txt", "a+", encoding="utf-8") as f:
+        with open("./result/success.txt", "r", encoding="utf-8") as f:
             success_urls = f.readlines()
         if success_urls == []:
             print(Fore.GREEN + "扫描结束，未找到接口泄露~~~" + Fore.RESET)
