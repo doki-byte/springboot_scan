@@ -16,26 +16,48 @@ urllib3.disable_warnings()
 warnings.filterwarnings("ignore")
 lock = threading.Lock()
 
+
+"""
+检查url状态
+"""        
+def check_url(url):
+    try:
+        response = requests.get(url,timeout=2,verify=False)
+        if response.status_code == 200 or response.status_code == 404 or response.status_code == 403:
+            print(Fore.GREEN + f"接口访问正常：{url} 即将开启接口扫描 ~~~" + Style.RESET_ALL)
+            return True
+        else:
+            print(Fore.RED + f"Error: 访问失败{url}" + Style.RESET_ALL)
+            return False
+    except Exception as e:
+        print(Fore.RED + f"Error: 访问失败{url}" + Style.RESET_ALL)
+        return False
+    
+
 # 路径请求
 """
 路径扫描
 """
-def ask(url):
+def ask_url(url):
     with lock:
         try:
-            response = requests.get(url,timeout=1)
+            response = requests.get(url,timeout=1,verify=False)
             if response.status_code == 200 and "This application has no configured error view, so you are seeing this as a fallback." not in response.text and "40" not in response.text and "50" not in response.text:
-                print(Fore.GREEN + f"Success: 存在接口：{url}" + Style.RESET_ALL)
+                print(f"\n{Fore.GREEN}Success: 存在接口：{url}{Style.RESET_ALL}")
                 with open("./result/success.txt", "a+", encoding="utf-8") as f:
                     f.write(url + "\n")
             else:
-                print(Fore.WHITE + f"Filded 不存在接口：{url}" + Style.RESET_ALL)
+                # print(Fore.WHITE + f"Filded 不存在接口：{url}" + Style.RESET_ALL)
+                pass
         except Exception as e:
-            print(Fore.RED + f"Error: 访问失败{url}" + Style.RESET_ALL)
+            print(f"\n{Fore.RED}Error: 访问失败 {url}{Style.RESET_ALL}")
 
-def scan(urls):
+# 扫描
+def scan(urls, pbar):
     for url in urls:
-        ask(url)
+        ask_url(url)
+        with lock:  # 使用锁来同步进度条更新
+            pbar.update(1)
 
 
 # 基础路径扫描
@@ -43,32 +65,30 @@ def scan(urls):
 基础路径扫描 
 springboot_urls.txt
 """
-def scan_base(baseurl):
+def scan_base(baseurl,thread_number):
     with open("./config/springboot_urls.txt", "r", encoding="utf-8") as f:
         springboot_url_paths = f.readlines()
 
-    url_paths = []
- 
-    for url_path in springboot_url_paths:
-        url_path = url_path.strip()
-        url_paths.append(baseurl + url_path)
+    url_paths = [baseurl + url_path.strip() for url_path in springboot_url_paths]
 
-    # 分成10个线程
-    threads = []
-    path_thread = len(url_paths) // 10
-    for i in range(10):
-        start_index = i * path_thread
-        end_index = (i + 1) * path_thread if i != 9 else len(url_paths)
-        thread_lines = url_paths[start_index:end_index]
+    # 创建一个共享的进度条
+    with tqdm(total=len(url_paths), desc="基础扫描模式", unit="个") as pbar:
+        # 线程划分
+        threads = []
+        path_thread = len(url_paths) // thread_number
+        for i in range(thread_number):
+            start_index = i * path_thread
+            end_index = (i + 1) * path_thread if i != 9 else len(url_paths)
+            thread_lines = url_paths[start_index:end_index]
 
-        thread = threading.Thread(target=scan, args=(thread_lines,))
-        threads.append(thread)
+            thread = threading.Thread(target=scan, args=(thread_lines, pbar))
+            threads.append(thread)
 
-    for thread in threads:
-        thread.start()
+        for thread in threads:
+            thread.start()
 
-    for thread in threads:
-        thread.join()
+        for thread in threads:
+            thread.join()
 
 
 # 前缀接口式路径扫描
@@ -76,7 +96,7 @@ def scan_base(baseurl):
 前缀接口式路径扫描 
 api.txt + base_urls.txt
 """
-def scan_api_url(baseurl):
+def scan_api_url(baseurl,thread_number):
     with open("./config/api.txt", "r", encoding="utf-8") as f:
         api_paths = f.readlines()
     
@@ -91,22 +111,24 @@ def scan_api_url(baseurl):
             base_path = base_path.strip()
             url_paths.append(baseurl + api_path + base_path)
 
-    # 分成10个线程
-    threads = []
-    path_thread = len(url_paths) // 10
-    for i in range(10):
-        start_index = i * path_thread
-        end_index = (i + 1) * path_thread if i != 9 else len(url_paths)
-        thread_lines = url_paths[start_index:end_index]
+    # 创建一个共享的进度条
+    with tqdm(total=len(url_paths), desc="前缀接口式路径扫描", unit="个") as pbar:
+        # 线程划分
+        threads = []
+        path_thread = len(url_paths) // thread_number
+        for i in range(thread_number):
+            start_index = i * path_thread
+            end_index = (i + 1) * path_thread if i != 9 else len(url_paths)
+            thread_lines = url_paths[start_index:end_index]
 
-        thread = threading.Thread(target=scan, args=(thread_lines,))
-        threads.append(thread)
+            thread = threading.Thread(target=scan, args=(thread_lines, pbar))
+            threads.append(thread)
 
-    for thread in threads:
-        thread.start()
+        for thread in threads:
+            thread.start()
 
-    for thread in threads:
-        thread.join()
+        for thread in threads:
+            thread.join()   
 
 """
 匹配ip或者域名
